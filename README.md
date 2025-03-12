@@ -113,7 +113,8 @@ The code includes specific handling for each operating system, particularly for 
      - `4` to exit the application
 
 4. **Plugin Control**
-   - Press the "Play" button in the plugin to start playing the received audio
+   - The plugin automatically detects when the generator is active and starts to play whenever the information is sent.
+   - You can stop playback at any time using the "Stop" button (even when the generator is active), and you need to press the "Play" button in the plugin to restart playback.
    - The interface will show:
      - Connection status with the generator
      - Current latency in milliseconds
@@ -186,7 +187,8 @@ This structure stores:
 - Implement adjustable buffer settings
 - Improve the user interface
 - Add more waveforms beyond sine wave
-- Add suport for WAVE files 
+- Add wave file support
+- Add different IPC methods for comparison
 - Integrate JUCE as a Git submodule
 
 ## License
