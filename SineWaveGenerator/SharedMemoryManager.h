@@ -8,16 +8,17 @@
 
 // Definição da estrutura de dados na memória compartilhada
 struct AudioSharedData {
-    static constexpr int maxBufferSize = 16384;  // Tamanho máximo do buffer
+    static constexpr int maxBufferSize = 16384;  
     
     std::atomic<int> readPosition { 0 };
     std::atomic<int> writePosition { 0 };
     std::atomic<bool> dataReady { false };
     std::atomic<int> bufferSize { 0 };
     std::atomic<double> sampleRate { 44100.0 };
+    std::atomic<double> originalSampleRate { 44100.0 }; 
     std::atomic<uint64_t> timestamp { 0 }; 
     std::atomic<float> frequency { 440.0f }; 
-    std::atomic<bool> generatorActive { false };  // Indica se o gerador está ativo
+    std::atomic<bool> generatorActive { false };  
     float audioData[maxBufferSize];
 
 };

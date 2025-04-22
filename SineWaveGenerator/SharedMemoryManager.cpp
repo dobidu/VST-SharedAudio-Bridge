@@ -197,16 +197,16 @@ bool SharedMemoryManager::readAudioData(juce::AudioBuffer<float>& buffer, int nu
     readPos = (readPos + samplesToRead) % AudioSharedData::maxBufferSize;
     sharedData->readPosition.store(readPos);
     
-    // IMPORTANTE: NÃO marcar como não pronto se o leitor consumiu menos amostras do que o total disponível
-    // Isso permite que múltiplos consumos ocorram do mesmo buffer até que seja totalmente consumido
+    //
     if (samplesToRead >= bufferSize) {
         sharedData->dataReady.store(false);
+    } else {
+        sharedData->bufferSize.store(bufferSize - samplesToRead);
     }
     
     return true;
 }
 
-// Modificação no método writeAudioData no SharedMemoryManager.cpp
 bool SharedMemoryManager::writeAudioData(const float* data, int numSamples)
 {
     if (!initialized || sharedData == nullptr)
@@ -222,10 +222,9 @@ bool SharedMemoryManager::writeAudioData(const float* data, int numSamples)
     
     // Limitar ao tamanho máximo do buffer
     const int samplesToWrite = juce::jmin(numSamples, AudioSharedData::maxBufferSize);
-    
-    // Começar do início do buffer para cada escrita
-    // Isso simplifica o modelo de compartilhamento e evita corrupção de dados
-    int writePos = 0;
+
+    // Guardar a taxa de amostragem original
+    sharedData->originalSampleRate.store(sharedData->sampleRate.load());
     
     // Copiar os dados
     for (int i = 0; i < samplesToWrite; ++i) {
