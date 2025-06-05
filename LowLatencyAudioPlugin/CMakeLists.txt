@@ -12,7 +12,7 @@ if(UNIX AND NOT APPLE)
 endif()
 
 # Definir o caminho para o JUCE
-set(JUCE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../JUCE" CACHE PATH "Caminho para o JUCE")
+set(JUCE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../submodules/JUCE" CACHE PATH "JUCE PATH")
 
 # Verificar se JUCE existe
 if(NOT EXISTS ${JUCE_PATH})
