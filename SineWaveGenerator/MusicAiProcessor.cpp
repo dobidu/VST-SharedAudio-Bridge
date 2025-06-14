@@ -116,6 +116,7 @@ bool MusicAIProcessor::processFile(
         frames_read_from_file = sf_readf_float(input_file, input_buffer, input_size);
         num_frames_queued = 0;
         do {
+            // Código do processamento
             result = musicai_process(
                 context,
                 input_buffer + num_frames_queued * model_info.num_input_channels,
@@ -139,6 +140,7 @@ bool MusicAIProcessor::processFile(
             break;
         }
     } while (frames_read_from_file == input_size);
+
     if (result.code == MUSICAI_STATUS_SUCCESS) {
         musicai_process(context, NULL, 0, NULL);
         fprintf(stderr, "Process flushing...\n");

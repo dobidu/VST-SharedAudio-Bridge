@@ -1,5 +1,0 @@
-# ninja log v6
-4	17	7696301596366282	clean	8c45b54705a541e8
-24	296	7696301616507559	CMakeFiles/example_app.dir/examples/example.c.obj	5ee03246b4714619
-5	521	7696302121440387	CMakeFiles/install.util	626eb41eb6ebdb0
-299	3003	7696301619190545	bin/example_app.exe	a6f99432f88ed288
