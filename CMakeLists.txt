@@ -5,15 +5,15 @@ set(CMAKE_CXX_STANDARD 17)
 # Output dirs
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-# Inclui seus headers
+# add headers
 include_directories(
     ${PROJECT_SOURCE_DIR}/include
 )
 
-# Fonte
+# source code
 file(GLOB_RECURSE SOURCES ${PROJECT_SOURCE_DIR}/src/*.cpp)
 
-# Define targets IMPORTED antes de usá-los
+# Define targets 
 if(WIN32)
     # musicai
     add_library(musicai SHARED IMPORTED)
@@ -37,17 +37,16 @@ if(WIN32)
     )
 endif()
 
-# Cria o executável
 add_executable(cli-musicai ${SOURCES})
 
-# Linka com os IMPORTED TARGETS (não use diretórios nem nomes, use os targets que você criou!)
+# Link IMPORTED TARGETS
 if(WIN32)
     target_link_libraries(cli-musicai PRIVATE musicai sndfile onnxruntime)
 else()
-    # Se for Linux/Mac adapte aqui para outros linkage...
+    # If it is Linux/Mac, adapt it here for other linkages...
 endif()
 
-# Copia DLLs para a pasta do .exe (bin) ao buildar
+# Copies DLLs to the .exe (bin) folder when building
 if(WIN32)
     foreach(DLL_NAME musicai.dll sndfile.dll onnxruntime.dll)
         if(EXISTS "${PROJECT_SOURCE_DIR}/lib/${DLL_NAME}")
