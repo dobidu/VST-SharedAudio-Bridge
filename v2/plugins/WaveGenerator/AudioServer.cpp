@@ -8,9 +8,14 @@ AudioServer::AudioServer() : juce::Thread("AudioServer"), server(), memoryManage
 {
 }
 
-juce::AudioBuffer<float>& AudioServer::getBuffer()
+juce::Array<float>& AudioServer::getBuffer()
 {
-    return buffer;
+    return servingBuffer;
+}
+
+void AudioServer::setBuffer(juce::Array<float>& buffer)
+{
+    servingBuffer = buffer;
 }
 
 void AudioServer::setNumberOfSamples(int num)
@@ -20,14 +25,15 @@ void AudioServer::setNumberOfSamples(int num)
 
 void AudioServer::run()
 {
-    int bufferSize = 1;
-    while (bufferSize > 0)
+    DBG("Running audio server...");
+    initAudioServer();
+    while (running)
     {
-        bufferSize = server.receiveBufferRequest();
+        int bufferSize = server.receiveBufferRequest() * 8;
         DBG("Playhead = " << playhead << " BufferSize = " << bufferSize << " SampleSize = " << numOfSamples);
         if (playhead + bufferSize < numOfSamples)
         {
-            memoryManager.fillShmWithBuffer(buffer.getReadPointer(0) + playhead, bufferSize);
+            memoryManager.fillShmWithBuffer(servingBuffer.data() + playhead, bufferSize);
             playhead += bufferSize;
         }
         else
@@ -41,11 +47,23 @@ void AudioServer::run()
 
 void AudioServer::startServer()
 {
+    DBG("Starting audio server...");
+    memoryManager.openMemoryBlockForWriting();
     memoryManager.initializeMemoryBlock();
     startThread(juce::Thread::Priority::highest);
 }
 
 void AudioServer::stopServer()
 {
-    stopThread(1000);
+    DBG("Stopping audio server...");
+    running = false;
+    server.closeServer();
+    memoryManager.closeMemoryBlock();
+    signalThreadShouldExit();
+}
+
+void AudioServer::initAudioServer() {
+    running = true;
+    playhead = 0;
+    server.startServer();
 }

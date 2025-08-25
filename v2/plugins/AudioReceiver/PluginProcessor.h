@@ -6,6 +6,7 @@
 
 enum PluginState
 {
+    Ready,
     Connecting,
     Running,
     Disconnecting
@@ -53,12 +54,24 @@ public:
 
     //==============================================================================
     void changePluginState(const PluginState newState);
-    PluginState getPluginState() const;
+    void changeChannelVolume(const int channel, const float newVolume);
+    bool initMemoryManager();
+    void closeMemoryManager();
 
+    PluginState getPluginState() const;
+    juce::AudioProcessorValueTreeState treeState;
 private:
     //==============================================================================
     std::atomic<PluginState> pluginState;
     ZMQCommClient zmqClient;
     MemoryManager memoryManager;
+    juce::Array<float> tempBuffer;
+    juce::AudioBuffer<float> tempDeinterleavedBuffer;
+    juce::Array<double> chVolume{1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f, 1.f};
+    juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+
+    void deinterleaveSamples(int numSamples);
+    void downmixBufferToOutput(juce::AudioBuffer<float>& buffer, int numOutputChannels, int numSamples);
+    void setChannelsVolume();
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AudioPluginAudioProcessor)
 };

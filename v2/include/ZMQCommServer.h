@@ -25,6 +25,8 @@ public:
     ZMQCommServer();
     int receiveBufferRequest();
     void sendBufferReadyResponse();
+    void startServer();
+    void closeServer();
 };
 
 #endif //ZMQCOMMSERVER_H

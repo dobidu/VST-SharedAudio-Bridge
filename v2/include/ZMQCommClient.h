@@ -3,7 +3,7 @@
 
 #include <string>
 #include <chrono>
-#include <vector>
+#include <array>
 
 #include <zmq.hpp>
 
@@ -13,9 +13,12 @@ class ZMQCommClient {
 private:
     zmq::context_t context;
     zmq::socket_t socket;
-    std::vector<zmq::poller_event<>> events{1};
-    zmq::message_t request{sizeof(SmallMsg)};
+    std::array<zmq::pollitem_t, 1> pollItems;
+
+    // zmq::message_t request{sizeof(SmallMsg)};
     zmq::message_t reply{sizeof(SmallMsg)};
+
+    zmq::const_buffer requestBuffer{};
 
 
     const std::chrono::milliseconds timeout{2};

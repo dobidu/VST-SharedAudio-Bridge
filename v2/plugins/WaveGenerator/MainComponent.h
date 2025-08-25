@@ -1,6 +1,7 @@
 #pragma once
 
 #include "AudioServer.h"
+#include "FileManagementPage.h"
 #include <JuceHeader.h>
 
 enum ServerState
@@ -12,11 +13,7 @@ enum ServerState
 };
 
 //==============================================================================
-/*
-    This component lives inside our window, and this is where you should put all
-    your controls and content.
-*/
-class MainComponent  : public juce::Component
+class MainComponent : public juce::TabbedComponent
 {
 public:
     //==============================================================================
@@ -29,19 +26,13 @@ public:
 
 private:
     //==============================================================================
-    juce::TextButton loadFileBtn;
-    juce::TextButton stopServerBtn;
-    juce::Label statusTxt;
+    juce::AudioBuffer<float> audioBuffer;
 
-    std::unique_ptr<juce::FileChooser>  fileChooser;
-    juce::AudioFormatManager formatManager;
-    ServerState state;
+    // void stopServer();
+    // void changeState(ServerState newState);
 
-    void loadFile();
-    void stopServer();
-    void changeState(ServerState newState);
-
-    AudioServer audioServer;
+    // AudioServer audioServer;
+    // ServerState state;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (MainComponent)
 };

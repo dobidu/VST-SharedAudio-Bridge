@@ -1,5 +1,5 @@
 set(HEADER_LIST "${SharedAudioPOC_SOURCE_DIR}/include/ZMQCommClient.h")
-find_package(cppzmq)
+find_package(cppzmq CONFIG REQUIRED)
 add_library(ZMQCommClient ZMQCommClient.cpp ${HEADER_LIST})
 target_include_directories(ZMQCommClient PUBLIC ${SharedAudioPOC_SOURCE_DIR}/include)
 source_group(

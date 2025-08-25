@@ -11,9 +11,10 @@
 
 class AudioServer : juce::Thread {
 private:
+    bool running{false};
     int playhead{0};
-    int numOfSamples;
-    juce::AudioBuffer<float> buffer;
+    int numOfSamples{0}, numChannels{0};
+    juce::Array<float> servingBuffer;
     ZMQCommServer server;
     MemoryManager memoryManager;
     void updatePlayhead();
@@ -22,12 +23,14 @@ public:
     AudioServer();
     void run() override;
 
-    juce::AudioBuffer<float>& getBuffer();
+    juce::Array<float>& getBuffer();
+    void setBuffer(juce::Array<float>& buffer);
     void setNumberOfSamples(int num);
     void startServer();
     void stopServer();
+
+private:
+    void initAudioServer();
 };
-
-
 
 #endif //AUDIOSERVER_H

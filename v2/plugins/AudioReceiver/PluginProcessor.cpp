@@ -1,4 +1,7 @@
 #include "PluginProcessor.h"
+
+#include <pluginterfaces/vst/vsttypes.h>
+
 #include "PluginEditor.h"
 
 //==============================================================================
@@ -10,7 +13,8 @@ AudioPluginAudioProcessor::AudioPluginAudioProcessor()
                       #endif
                        .withOutput ("Output", juce::AudioChannelSet::stereo(), true)
                      #endif
-                       ), pluginState(Connecting), zmqClient(), memoryManager()
+                       ), pluginState(Connecting), zmqClient(), memoryManager(),
+                        treeState(*this, nullptr, "PARAMS", createParameterLayout())
 {
 
 }
@@ -19,6 +23,21 @@ AudioPluginAudioProcessor::~AudioPluginAudioProcessor()
 {
 }
 
+juce::AudioProcessorValueTreeState::ParameterLayout AudioPluginAudioProcessor::createParameterLayout()
+{
+    std::vector<std::unique_ptr<juce::RangedAudioParameter>> parameters;
+
+    parameters.reserve(4);
+
+    for (int i = 0; i < 4; ++i) {
+        juce::String paramID = "ch" + std::to_string(i+1) + "vol";
+        juce::String paramName = "Channel " + std::to_string(i+1) + " Volume";
+        auto channelSlider = std::make_unique<juce::AudioParameterFloat>(paramID, paramName, 0.0, 1.f, 1.f);
+        parameters.push_back(std::move(channelSlider));
+    }
+
+    return { parameters.begin(), parameters.end() };
+}
 //==============================================================================
 const juce::String AudioPluginAudioProcessor::getName() const
 {
@@ -87,9 +106,12 @@ void AudioPluginAudioProcessor::changeProgramName (int index, const juce::String
 //==============================================================================
 void AudioPluginAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
-    // Use this method as the place to do any pre-playback
-    // initialisation that you need..
+    DBG("Prepare to play");
     juce::ignoreUnused (sampleRate, samplesPerBlock);
+
+    DBG("Allocated " << samplesPerBlock * NUM_BUFFER_CHANNELS);
+    tempBuffer.resize(samplesPerBlock * NUM_BUFFER_CHANNELS);
+    tempDeinterleavedBuffer.setSize(NUM_BUFFER_CHANNELS, samplesPerBlock);
 }
 
 void AudioPluginAudioProcessor::releaseResources()
@@ -134,23 +156,24 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     for (auto i = 0; i < totalNumOutputChannels; ++i)
         buffer.clear (i, 0, bufferSize);
 
+    setChannelsVolume();
+
     if (pluginState == Running)
     {
         try
         {
+            DBG("Resquested buffer size " << bufferSize);
+            // TODO: Get start timestamp
             if (!zmqClient.requestAudioBlock(bufferSize))
             {
-                // TODO: Get start timestamp
-                DBG("Got no response from server");
+                DBG("Got no response from server.");
                 zmqClient.refreshConnection();
             } else
             {
-                DBG("Received server response.");
-                for (auto ch = 0; ch < buffer.getNumChannels(); ++ch)
-                {
-                    auto bufferWriter = buffer.getWritePointer(ch);
-                    memoryManager.copyShmToBuffer(bufferWriter, bufferSize);
-                }
+                DBG("Received server response. Copying " << bufferSize * 8 << " samples");
+                memoryManager.copyShmToBuffer(tempBuffer.data(), bufferSize * 8);
+                deinterleaveSamples(bufferSize);
+                downmixBufferToOutput(buffer, totalNumOutputChannels, bufferSize);
                 // TODO: Get stop timestamp
                 // TODO: DBG start - stop, buffersize/samplerate
             }
@@ -161,8 +184,49 @@ void AudioPluginAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     }
     if (pluginState == Disconnecting)
     {
-        zmqClient.requestAudioBlock(0);
+        for (auto i = 0; i < totalNumOutputChannels; ++i)
+            buffer.clear (i, 0, bufferSize);
         changePluginState(Connecting);
+    }
+}
+
+//==============================================================================
+void AudioPluginAudioProcessor::deinterleaveSamples(int numSamples)
+{
+    int numChannels = tempDeinterleavedBuffer.getNumChannels();
+    int numSamplesPerChannel = tempBuffer.size() / NUM_BUFFER_CHANNELS;
+
+    for (int channel = 0; channel < numChannels; channel++) {
+        float* writer = tempDeinterleavedBuffer.getWritePointer(channel);
+        for (int n = 0; n < numSamples; n++)
+        {
+            int interleavedIndex = (n * numChannels) + channel;
+            writer[n] = tempBuffer[interleavedIndex];
+        }
+    }
+}
+
+void AudioPluginAudioProcessor::setChannelsVolume() {
+    int paramIdx = 1;
+    for (int i = 0; i < NUM_BUFFER_CHANNELS; i += 2) {
+        juce::String paramID = "ch" + std::to_string (paramIdx) + "vol";
+        chVolume.set(i, *treeState.getRawParameterValue(paramID));
+        chVolume.set(i + 1, *treeState.getRawParameterValue(paramID));
+        paramIdx++;
+    }
+}
+
+void AudioPluginAudioProcessor::downmixBufferToOutput(juce::AudioBuffer<float>& buffer, int numOutputChannels, int numSamples)
+{
+    for (int outputChannel = 0; outputChannel < numOutputChannels; ++outputChannel) {
+        for (int inputChannel = 0; inputChannel < tempDeinterleavedBuffer.getNumChannels(); ++inputChannel) {
+            if (inputChannel % numOutputChannels == outputChannel) {
+                auto sourceReader = tempDeinterleavedBuffer.getReadPointer(inputChannel);
+
+                float gain = chVolume[inputChannel];
+                buffer.addFromWithRamp(outputChannel, 0, sourceReader, numSamples, gain, gain);
+            }
+        }
     }
 }
 
@@ -194,6 +258,12 @@ void AudioPluginAudioProcessor::setStateInformation (const void* data, int sizeI
 }
 
 //==============================================================================
+void AudioPluginAudioProcessor::changeChannelVolume(const int channel, const float newVolume)
+{
+    if (channel >= 0 && channel < 5)
+        chVolume.set(channel, newVolume);
+}
+
 void AudioPluginAudioProcessor::changePluginState(const PluginState newState)
 {
     if (pluginState != newState)
@@ -205,7 +275,15 @@ PluginState AudioPluginAudioProcessor::getPluginState() const
     return pluginState;
 }
 
+bool AudioPluginAudioProcessor::initMemoryManager()
+{
+    return memoryManager.openMemoryBlockForReading();
+}
 
+void AudioPluginAudioProcessor::closeMemoryManager()
+{
+    memoryManager.closeMemoryBlock();
+}
 //==============================================================================
 // This creates new instances of the plugin..
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
